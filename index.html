@@ -895,7 +895,7 @@ async function redeemFree(userId) {
     const ready = u.stamps > 0 && filled === 0;
     if (!ready) { showFlash('⚠️', 'Ödül yok', 'Henüz bedava kahve hakkı yok'); return; }
     const newFree = (u.total_free || 0) + 1;
-    await db.from('users').update({ total_free: newFree }).eq('id', userId);
+    await db.from('users').update({ total_free: newFree, stamps: 0 }).eq('id', userId);
     await db.from('transactions').insert({ user_id: userId, type: 'redeem' });
     showFlash('🎁', 'Afiyet Olsun!', 'Bedava kahve kullanıldı');
     await loadUserList();
