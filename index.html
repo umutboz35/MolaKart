@@ -495,7 +495,32 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
     <div style="display:flex;flex-direction:column;gap:10px">
       <button class="btn btn-stamp" style="background:var(--gold);color:#0f0600" onclick="manualStamp()">☕ Damga Ekle</button>
       <button class="btn btn-redeem" id="mo-redeem" style="display:none" onclick="manualRedeem()">🎁 Bedava Kahve Kullan</button>
+      <button class="btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--cream-dim);padding:14px;border-radius:var(--rs);font-family:inherit;font-size:15px;cursor:pointer;width:100%" onclick="openResetPass()">🔑 Şifreyi Sıfırla</button>
       <button class="btn btn-outline" onclick="document.getElementById('manual-overlay').style.display='none'">Kapat</button>
+    </div>
+  </div>
+</div>
+
+<!-- Şifre sıfırlama overlay -->
+<div class="overlay" id="reset-overlay" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="sheet">
+    <div class="handle"></div>
+    <div class="sheet-title">Şifre Sıfırla</div>
+    <div class="sheet-sub" id="reset-sub">Müşteri için yeni şifre belirleyin</div>
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px;letter-spacing:.06em">YENİ ŞİFRE</label>
+      <input id="reset-pass" type="password" placeholder="En az 4 karakter"
+        style="width:100%;padding:13px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:inherit;font-size:15px;outline:none">
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px;letter-spacing:.06em">YENİ ŞİFRE (TEKRAR)</label>
+      <input id="reset-pass2" type="password" placeholder="Aynı şifreyi tekrar girin"
+        style="width:100%;padding:13px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:inherit;font-size:15px;outline:none">
+    </div>
+    <div id="reset-err" style="font-size:13px;color:#ff7c7c;text-align:center;min-height:20px;margin-bottom:8px"></div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button style="width:100%;padding:14px;background:var(--gold);color:#0f0600;border:none;border-radius:var(--rs);font-family:inherit;font-size:15px;font-weight:500;cursor:pointer" onclick="doResetPass()">✓ Şifreyi Güncelle</button>
+      <button style="width:100%;padding:14px;background:transparent;border:1px solid var(--border);color:var(--text-muted);border-radius:var(--rs);font-family:inherit;font-size:14px;cursor:pointer" onclick="document.getElementById('reset-overlay').style.display='none'">Vazgeç</button>
     </div>
   </div>
 </div>
@@ -527,13 +552,13 @@ async function init() {
   try {
     db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     // Check stored session
-    const saved = sessionStorage.getItem('kk_user');
+    const saved = localStorage.getItem('kk_user');
     if (saved) {
       currentUser = JSON.parse(saved);
       await refreshUserData(true);
       hideLoad(); showScreen('main-screen'); return;
     }
-    const adminSaved = sessionStorage.getItem('kk_admin');
+    const adminSaved = localStorage.getItem('kk_admin');
     if (adminSaved) { adminAuthed = true; hideLoad(); await loadAdminScreen(); showScreen('admin-screen'); return; }
   } catch(e) { console.error(e); }
   hideLoad(); showScreen('auth-screen');
@@ -570,7 +595,7 @@ async function doLogin() {
     const { data, error } = await db.from('users').select('*').eq('username', username).eq('password_hash', hash).single();
     if (error || !data) { errEl.textContent = 'Kullanıcı adı veya şifre hatalı'; return; }
     currentUser = data;
-    sessionStorage.setItem('kk_user', JSON.stringify(data));
+    localStorage.setItem('kk_user', JSON.stringify(data));
     renderMain();
     showScreen('main-screen');
   } catch(e) { errEl.textContent = 'Bağlantı hatası: ' + e.message; }
@@ -604,7 +629,7 @@ async function doRegister() {
 function doLogout() {
   stopScanner();
   currentUser = null;
-  sessionStorage.removeItem('kk_user');
+  localStorage.removeItem('kk_user');
   showScreen('auth-screen');
 }
 
@@ -615,7 +640,7 @@ async function refreshUserData(silent=false) {
     const { data } = await db.from('users').select('*').eq('id', currentUser.id).single();
     if (data) {
       currentUser = data;
-      sessionStorage.setItem('kk_user', JSON.stringify(data));
+      localStorage.setItem('kk_user', JSON.stringify(data));
       renderMain();
     }
   } catch(e) { if (!silent) console.error(e); }
@@ -627,7 +652,7 @@ async function refreshQR() {
     const { data } = await db.rpc('refresh_qr_token', { user_id: currentUser.id });
     if (data) {
       currentUser.qr_token = data;
-      sessionStorage.setItem('kk_user', JSON.stringify(currentUser));
+      localStorage.setItem('kk_user', JSON.stringify(currentUser));
       renderQR();
       showFlash('🔄', 'QR Yenilendi', 'Yeni kodunuz hazır');
     }
@@ -723,7 +748,7 @@ async function checkAdminPin() {
   const validHash = await hashPass(ADMIN_PIN);
   if (hash === validHash || hash === sha1234) {
     adminAuthed = true;
-    sessionStorage.setItem('kk_admin', '1');
+    localStorage.setItem('kk_admin', '1');
     document.getElementById('admin-pin-overlay').style.display = 'none';
     doLogout();
     await loadAdminScreen();
@@ -735,7 +760,7 @@ async function checkAdminPin() {
 }
 function doAdminLogout() {
   stopScanner(); adminAuthed = false;
-  sessionStorage.removeItem('kk_admin');
+  localStorage.removeItem('kk_admin');
   showScreen('auth-screen');
 }
 
@@ -900,6 +925,38 @@ async function redeemFree(userId) {
     showFlash('🎁', 'Afiyet Olsun!', 'Bedava kahve kullanıldı');
     await loadUserList();
   } catch(e) { showFlash('❌', 'Hata', e.message); }
+}
+
+
+// ── Şifre sıfırlama ──
+let resetTargetUser = null;
+
+function openResetPass() {
+  if (!manualTargetUser) return;
+  resetTargetUser = manualTargetUser;
+  document.getElementById('reset-sub').textContent = manualTargetUser.name + ' · @' + manualTargetUser.username;
+  document.getElementById('reset-pass').value = '';
+  document.getElementById('reset-pass2').value = '';
+  document.getElementById('reset-err').textContent = '';
+  document.getElementById('manual-overlay').style.display = 'none';
+  document.getElementById('reset-overlay').style.display = 'flex';
+}
+
+async function doResetPass() {
+  const p1 = document.getElementById('reset-pass').value;
+  const p2 = document.getElementById('reset-pass2').value;
+  const errEl = document.getElementById('reset-err');
+  errEl.textContent = '';
+  if (!p1) { errEl.textContent = 'Şifre boş olamaz'; return; }
+  if (p1.length < 4) { errEl.textContent = 'En az 4 karakter olmalı'; return; }
+  if (p1 !== p2) { errEl.textContent = 'Şifreler eşleşmiyor'; return; }
+  try {
+    const hash = await hashPass(p1);
+    await db.from('users').update({ password_hash: hash }).eq('id', resetTargetUser.id);
+    document.getElementById('reset-overlay').style.display = 'none';
+    showFlash('✓', 'Şifre Güncellendi', resetTargetUser.name + ' için yeni şifre belirlendi');
+    resetTargetUser = null;
+  } catch(e) { errEl.textContent = 'Hata: ' + e.message; }
 }
 
 // ── Utils ──
